@@ -6,6 +6,8 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+.venv-broken/
+.venv-old/
 venv/
 env/
 
