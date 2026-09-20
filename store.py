@@ -66,7 +66,13 @@ class _OnnxEmbedder:
         self._ef = ONNXMiniLM_L6_V2()
 
     def encode(self, texts, show_progress_bar: bool = False):
-        return [vector.tolist() for vector in self._ef(list(texts))]
+        # Small batches: one call with ~90 texts got the process OOM-killed
+        # (exit 137) on an 8 GB machine.
+        texts = list(texts)
+        vectors = []
+        for start in range(0, len(texts), 16):
+            vectors.extend(v.tolist() for v in self._ef(texts[start : start + 16]))
+        return vectors
 
 
 def _sentence_transformer(name: str):
