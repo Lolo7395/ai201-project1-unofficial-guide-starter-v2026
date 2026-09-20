@@ -1,19 +1,6 @@
 # The Unofficial Guide
 
-<!-- Replace this line with your name and which corpus you picked. -->
-
-> **This file is your submission.** Fill it in as you go — most sections get
-> written during the milestone that produces them, not at the end.
->
-> How the starter works, and every command you'll need, is in `RUNNING.md`.
-> Leave that file alone.
->
-> **Paste everything as text.** No screenshots, no video. A typed table gets
-> full credit; a picture of the same table gets none.
->
-> Delete these instruction blocks as you replace them. The `<!-- -->` comments
-> are notes to you and don't show up when the page renders — you can leave them
-> or remove them.
+Lorraine Mureya — corpus: `city_guides`.
 
 ---
 
@@ -21,104 +8,159 @@
 
 ## What This Does
 
-<!-- Three or four sentences. Which corpus you picked, and the kinds of
-     questions your system answers. Write it for someone who has never seen
-     this repo.
-
-     Milestone 5. -->
+The Unofficial Guide is a retrieval-augmented question-answering tool over the
+`city_guides` corpus: fourteen short travel guides to a fictional region
+(Brightwater, Kestrelford, Corry Vale, Halden Bay, Marchwood and others, plus
+region-wide guides on transport, eating, accessibility, walking and seasons).
+You ask practical questions such as "Does a bus run to Kestrelford on
+Sundays?" and it retrieves the closest guide sections from a Chroma vector
+store, and answers using only that text, naming the source guide. If nothing
+in the guides is close enough to the question, a relevance gate refuses
+instead of guessing. Run it with `python app.py index` then
+`python app.py ask "..."`.
 
 ## Chunking Strategy
 
-**Chunk size:**
-**Overlap:**
+**Chunk size:** one `## ` section per chunk, capped at 650 characters
+(`CHUNK_SIZE`), with sections under 180 characters (`MIN_CHUNK_SIZE`) merged
+into the next one. Actual result: 91 chunks, 201 to 678 characters, 327 on
+average.
+**Overlap:** 90 characters, used only when a single paragraph is longer than
+the cap and has to be split at a sentence end. Paragraph-aligned splits carry
+no overlap.
 
-<!-- What about YOUR documents made you pick these numbers? Short posts and
-     long sectioned guides don't want the same chunking, and "800 seemed
-     reasonable" earns nothing. Point at something you noticed when you read
-     the documents in Milestone 1.
+When I read the guides in Milestone 1, every one turned out to be a few
+`## ` sections (Getting there, Where to stay, When to go...) of roughly
+150-650 characters, each one a single topic. The answer to a question like
+"how much to climb the tower" is one sentence inside one such section, so
+cutting on a fixed character count (the starter's 800/120) would slice through
+sections and glue unrelated topics together, while splitting on sections keeps
+each fact with its context. Each chunk is prefixed with
+`<guide title> - <section heading>` because a sentence like "There is no local
+bus service" is meaningless without knowing which town, and the prefix also
+puts the town name into the embedding.
 
-     If you changed your mind partway through, say so and say why. That's worth
-     more than pretending you got it right first time.
-
-     Milestone 3. -->
+I changed my mind once. My first version split over-long sections on
+sentences with a character overlap; the accessibility guide came out as chunks
+starting mid-sentence ("market are both step-free") and lost its paragraph
+breaks. Its paragraphs are one town each, so I changed the splitter to pack
+whole paragraphs first and only fall back to sentence splits (with whole-sentence
+overlap) for a paragraph that alone exceeds the cap.
 
 ## Sample Chunks
 
-<!-- Five chunks, pasted as text. Label each one and name the file it came from
-     AND the function that produced it — the grader checks your code against
-     what you claim here.
+All five printed from the built index; each was produced by
+`chunker.py::split_documents`.
 
-     `python app.py chunks -n 5` prints all three for you. Copy them straight
-     across.
-
-     Milestone 3. -->
-
-**Chunk 1** — source: `` — produced by: ``
+**Chunk 1** — source: `guide_kestrelford.md` — produced by: `chunker.py::split_documents`
 
 ```
+Kestrelford — Getting there
+No railway station; the line was closed in 1963 and the trackbed is now a walking route. Buses run from Brightwater roughly hourly on weekdays, every two hours on Saturdays, and not at all on Sundays. Driving takes 55 minutes and the last eight are on a single-track road with passing places.
 ```
 
-**Chunk 2** — source: `` — produced by: ``
+**Chunk 2** — source: `guide_corry_vale.md` — produced by: `chunker.py::split_documents`
 
 ```
+Corry Vale — Eat and drink
+One pub in the largest village serves food seven days a week. A second, in the third village, opens Thursday to Sunday. There is a farm shop at the valley mouth that sells bread, cheese and little else, and it closes at 4pm. Bring supplies; this is not a place with options.
 ```
 
-**Chunk 3** — source: `` — produced by: ``
+**Chunk 3** — source: `guide_regional_transport.md` — produced by: `chunker.py::split_documents`
 
 ```
+Getting around the region — Buses
+Three operators run in the region and they do not accept each other's tickets,
+which is the single most common source of confusion for visitors. Services
+concentrate on weekday daytimes. Sunday service is minimal to non-existent
+outside the Brightwater town routes.
+
+The Kestrelford service is hourly on weekdays, two-hourly on Saturdays, and
+does not run on Sundays. The Halden Bay coast service runs four times daily
+year-round.
 ```
 
-**Chunk 4** — source: `` — produced by: ``
+**Chunk 4** — source: `guide_accessibility.md` — produced by: `chunker.py::split_documents`
 
 ```
+Getting around the region with limited mobility — Difficult
+**Kestrelford** is built on a slope and the walk up from the lower car park is
+steeper than it looks on a map. There is no transport within the town.
+
+**Halden Bay** is built on three levels connected by stepped lanes. The harbour
+front is level; everything above it is not. This is hard going with luggage or a
+pushchair, let alone a wheelchair.
+
+**Corry Vale** has no public transport, villages two to four miles apart, and
+footpaths rather than pavements. **Elder Ness** is shingle and a single street.
 ```
 
-**Chunk 5** — source: `` — produced by: ``
+**Chunk 5** — source: `guide_eating.md` — produced by: `chunker.py::split_documents`
 
 ```
+Eating across the region — Opening hours
+This catches visitors out more than anything else. Outside Marchwood, kitchens
+across the region stop serving at 9pm and often earlier. Kestrelford's pubs
+serve 12 to 2 and 6 to 8:30 and there is nowhere to eat at all outside those
+windows. Elder Ness has one pub, closed Mondays.
+
+Sunday evening is the hardest meal to find anywhere except Marchwood and
+Thornby Wells.
 ```
 
 ## Sample Answer
 
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
-
-**Question:**
+**Question:** Can I get a taxi in Corry Vale without booking ahead?
 
 **Answer:**
 
 ```
+No, you cannot. There is only one taxi in the valley, and it must be booked a day ahead (guide_corry_vale.md).
+
+Sources retrieved: guide_corry_vale.md
 ```
 
-**My relevance cutoff:**
-
-<!-- The number you set in config.py, and how you got there.
-
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
-
-     Milestone 4. -->
+**My relevance cutoff:** `THRESHOLD = 0.6` in `config.py`. Distances are lower
+= closer. My five in-corpus questions all had a best distance of 0.406 or
+less, and the five out-of-scope questions all had 0.808 or more, so there is a
+gap of about 0.4 and 0.6 sits roughly in the middle. I did not have to tune it
+tightly; I kept the starter value because the measurements supported it. A
+question can still slip through the gate if it is about a town in the guides
+but asks something they do not say, which is why the prompt also tells the
+model to refuse when the chunks do not contain the answer.
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| Does a bus run to Kestrelford on Sundays? | Yes | 0.286 |
+| How much does it cost to climb the church tower in Kestrelford? | Yes | 0.406 |
+| Can I get a taxi in Corry Vale without booking ahead? | Yes | 0.370 |
+| What time do the pubs in Kestrelford stop serving food in the evening? | Yes | 0.165 |
+| How long does the train from Brightwater to the regional hub take? | Yes | 0.238 |
+| What is the capital of Mongolia? | No | 0.808 |
+| How do I change the oil in a diesel engine? | No | 0.881 |
+| Who won the 1994 World Cup? | No | 0.982 |
+| What is the recommended dosage of ibuprofen for a headache? | No | 0.835 |
+| How do I write a for loop in Rust? | No | 0.859 |
 
 ## How I Used AI
 
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
+**1.** I asked Claude Code to replace the starter's fixed-size chunker with one
+built for the guides. It wrote a section-per-chunk splitter with a
+sentence-level overlap for long sections. When I printed the chunks, the
+accessibility guide was chopped mid-sentence and had lost its paragraph
+breaks, so the chunk did not stand on its own. I had Claude change the
+splitter to keep whole paragraphs together (each is one town) and only split
+on sentences for a paragraph that is longer than the cap, then re-printed the
+chunks to check every one now ends on a complete sentence.
 
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
-
-     Milestone 5. -->
-
-**1.**
-
-**2.**
+**2.** `python app.py index` died with exit code 137 and no error message
+partway through embedding. Claude narrowed it down by embedding batches of
+8, 32 and 91 texts directly: 8 and 32 worked and 91 was killed, which pointed
+to memory use on my 8 GB machine rather than a bad model download. The fix was
+to embed in batches of 16 in `store.py`; indexing then completed in about 13
+seconds. I also had Claude draft my acceptance criteria 4 and 5; I checked the
+numbers in them against what the index reported (shortest chunk 201,
+longest 678) before keeping them.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
