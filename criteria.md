@@ -23,8 +23,11 @@ For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
 **Why this target:**
-<!-- e.g. "One of my questions is about a topic only two documents mention, so
-     I expect that one to be hard." -->
+All five of my questions are single-fact lookups (a price, a time, a duration)
+that live in one short section of one guide, but two of them (Sunday buses,
+the Brightwater train) are also mentioned in the regional transport guide, so
+near-duplicate chunks can crowd the top five. 4 of 5 leaves room for one such
+crowding-out miss without accepting a retriever that fails a third of the time.
 
 ---
 
@@ -33,8 +36,11 @@ contains the answer.
 Every answer the system produces names at least one source document.
 
 **Why this target:**
-<!-- Why all five and not four? What about your setup makes that achievable —
-     or what would have to go wrong for it not to be? -->
+Every chunk carries its guide title and source filename, and the generation
+prompt tells the model to cite them, so a missing source is a prompt or
+formatting failure, not a hard-question failure. Nothing about the setup
+excuses one, so the target is 5 of 5, not 4. What would have to go wrong: the
+model answering from a chunk without naming its file.
 
 ---
 
@@ -50,8 +56,12 @@ in at least 4 of 5 tries.
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
 **Why this target:**
-<!-- What did your distances look like when you set the cutoff in Milestone 4?
-     Was there a clean gap, or did the two groups overlap? -->
+When I set the cutoff in Milestone 4 there was a clean gap: my in-corpus
+questions had best distances of 0.165-0.406 and the five out-of-scope ones
+0.808-0.982. With a cutoff of 0.6 sitting in that gap I could have asked for
+5 of 5, but the pre-written 4 of 5 stands because a borderline question (for
+example "what's the weather in Brightwater?") would land near the cutoff and
+I don't want the target to depend on that never happening.
 
 ---
 
@@ -69,11 +79,18 @@ in at least 4 of 5 tries.
        - "No chunk is shorter than 200 characters, since anything below that
           in my corpus turned out to be a heading with no content under it." -->
 
-
+Every chunk is at least 200 characters and none is longer than 700, and every
+chunk ends on a complete sentence (no chunk cut mid-sentence at its end).
 
 **Why this target:**
 
-
+My guides are written in "## " sections of roughly 150-650 characters, each on
+one topic. In Milestone 3 the smallest useful section (a "Where to stay" of
+about 200 characters) was still a whole answer, so anything under 200 would be
+a heading or fragment with no content, and anything over 700 would mean two
+topics were glued together and diluting the embedding. Both bounds are
+countable from `python app.py index`, which reports the shortest and longest
+chunk (currently 201 and 678), and the sentence-end check is a one-line script.
 
 ---
 
@@ -87,11 +104,17 @@ in at least 4 of 5 tries.
      present — anything, as long as it names a number or an observable
      outcome. -->
 
-
+The source named in the answer is the document that actually contains the
+answer: for 5 of 5 test questions, at least one cited file is the one whose
+text contains the `expects` phrase.
 
 **Why this target:**
 
-
+Criterion 2 only checks that a source is named, which a model could satisfy by
+citing a plausible-sounding but wrong guide. Because the region's guides
+overlap heavily (Kestrelford appears in its own guide, the transport guide,
+the eating guide and the accessibility guide), attribution is the failure I
+would most worry about, and it is the one that makes the guide trustworthy.
 
 ---
 
