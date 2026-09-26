@@ -8,44 +8,23 @@ Lorraine Mureya — corpus: `city_guides`.
 
 ## What This Does
 
-The Unofficial Guide is a retrieval-augmented question-answering tool over the
-`city_guides` corpus: fourteen short travel guides to a fictional region
-(Brightwater, Kestrelford, Corry Vale, Halden Bay, Marchwood and others, plus
-region-wide guides on transport, eating, accessibility, walking and seasons).
-You ask practical questions such as "Does a bus run to Kestrelford on
-Sundays?" and it retrieves the closest guide sections from a Chroma vector
-store, and answers using only that text, naming the source guide. If nothing
-in the guides is close enough to the question, a relevance gate refuses
-instead of guessing. Run it with `python app.py index` then
-`python app.py ask "..."`.
+The Unofficial Guide is a question-answering tool built from 14 short travel guides to a fictional region. The guides cover places like Brightwater, Kestrelford, Corry Vale, Halden Bay, and Marchwood, as well as topics like transport, food, accessibility, walking, and seasons.
+
+You can ask a practical question, such as “Does a bus run to Kestrelford on Sundays?” The tool searches the guides for relevant sections and uses them to answer, naming the guide it used. If the guides don’t contain a relevant answer, it says so instead of guessing.
+To use it, run `python app.py index` first, then `python app.py ask "your question"`.
+.
 
 ## Chunking Strategy
+**Chunk size:** Each chunk usually contains one `##` section. Sections shorter than 180 characters are merged with the next section. The resulting index has 91 chunks, ranging from 201 to 678 characters, with an average of 327.
 
-**Chunk size:** one `## ` section per chunk, capped at 650 characters
-(`CHUNK_SIZE`), with sections under 180 characters (`MIN_CHUNK_SIZE`) merged
-into the next one. Actual result: 91 chunks, 201 to 678 characters, 327 on
-average.
-**Overlap:** 90 characters, used only when a single paragraph is longer than
-the cap and has to be split at a sentence end. Paragraph-aligned splits carry
-no overlap.
+**Overlap:** I use 90 characters of overlap only when a paragraph is too long and must be split at a sentence ending. Splits between whole paragraphs have no overlap.
 
-When I read the guides in Milestone 1, every one turned out to be a few
-`## ` sections (Getting there, Where to stay, When to go...) of roughly
-150-650 characters, each one a single topic. The answer to a question like
-"how much to climb the tower" is one sentence inside one such section, so
-cutting on a fixed character count (the starter's 800/120) would slice through
-sections and glue unrelated topics together, while splitting on sections keeps
-each fact with its context. Each chunk is prefixed with
-`<guide title> - <section heading>` because a sentence like "There is no local
-bus service" is meaningless without knowing which town, and the prefix also
-puts the town name into the embedding.
+In Milestone 1, I found that the guides are organized into short sections such as “Getting there,” “Where to stay,” and “When to go.” Each section usually covers one topic, and an answer like the cost of climbing a tower fits within one section. Splitting at a fixed character count could cut an answer away from its context or combine unrelated topics. Keeping sections together works better for these guides.
 
-I changed my mind once. My first version split over-long sections on
-sentences with a character overlap; the accessibility guide came out as chunks
-starting mid-sentence ("market are both step-free") and lost its paragraph
-breaks. Its paragraphs are one town each, so I changed the splitter to pack
-whole paragraphs first and only fall back to sentence splits (with whole-sentence
-overlap) for a paragraph that alone exceeds the cap.
+I also add the guide title and section heading to each chunk. That way, a sentence like “There is no local bus service” clearly belongs to a particular town, and the town name is included when the chunk is indexed.
+
+I made one change after testing my first version. I initially split long sections by sentence, but this caused some accessibility guide chunks to begin in the middle of a thought and lose their paragraph breaks. Since each paragraph in that guide covers one town, I now keep paragraphs together whenever possible. I split by sentence only when a single paragraph is too long.
+
 
 ## Sample Chunks
 
@@ -120,14 +99,10 @@ No, you cannot. There is only one taxi in the valley, and it must be booked a da
 Sources retrieved: guide_corry_vale.md
 ```
 
-**My relevance cutoff:** `THRESHOLD = 0.6` in `config.py`. Distances are lower
-= closer. My five in-corpus questions all had a best distance of 0.406 or
-less, and the five out-of-scope questions all had 0.808 or more, so there is a
-gap of about 0.4 and 0.6 sits roughly in the middle. I did not have to tune it
-tightly; I kept the starter value because the measurements supported it. A
-question can still slip through the gate if it is about a town in the guides
-but asks something they do not say, which is why the prompt also tells the
-model to refuse when the chunks do not contain the answer.
+**My relevance cutoff is `THRESHOLD = 0.6` in `config.py`.** A lower distance means a closer match. For my five questions answered by the guides, the closest result was 0.406 or lower. For the five questions outside the guides’ scope, it was 0.808 or higher. Since 0.6 falls between those groups, I kept the starter value.
+
+The cutoff alone cannot catch every question the guides don’t answer. For example, a question about a town in the guides might retrieve a relevant section even if that section lacks the specific answer. That’s why the prompt also tells the model to say when the retrieved text does not contain the answer.
+
 
 | Question | In corpus? | Best distance |
 |---|---|---|
@@ -144,23 +119,14 @@ model to refuse when the chunks do not contain the answer.
 
 ## How I Used AI
 
-**1.** I asked Claude Code to replace the starter's fixed-size chunker with one
-built for the guides. It wrote a section-per-chunk splitter with a
-sentence-level overlap for long sections. When I printed the chunks, the
-accessibility guide was chopped mid-sentence and had lost its paragraph
-breaks, so the chunk did not stand on its own. I had Claude change the
-splitter to keep whole paragraphs together (each is one town) and only split
-on sentences for a paragraph that is longer than the cap, then re-printed the
-chunks to check every one now ends on a complete sentence.
+**1.** I asked Claude Code to replace the starter’s fixed-size chunker with one that follows the structure of the guides. Its first version made one chunk per section and split long sections by sentence with some overlap.
 
-**2.** `python app.py index` died with exit code 137 and no error message
-partway through embedding. Claude narrowed it down by embedding batches of
-8, 32 and 91 texts directly: 8 and 32 worked and 91 was killed, which pointed
-to memory use on my 8 GB machine rather than a bad model download. The fix was
-to embed in batches of 16 in `store.py`; indexing then completed in about 13
-seconds. I also had Claude draft my acceptance criteria 4 and 5; I checked the
-numbers in them against what the index reported (shortest chunk 201,
-longest 678) before keeping them.
+When I printed the chunks, I noticed a problem in the accessibility guide: some chunks started mid-sentence, and the paragraph breaks were gone. That made them hard to understand on their own. I asked Claude to keep whole paragraphs together, since each paragraph covers one town, and to split by sentence only when a paragraph is too long. I printed the chunks again to check that each one ended with a complete sentence.
+
+**2.** `python app.py index` stopped partway through creating embeddings with exit code 137 and no error message. To investigate, I had Claude test batches of 8, 32, and 91 texts. The smaller batches worked, but the batch of 91 was killed. That pointed to a memory limit on my 8 GB machine.
+
+Claude updated `store.py` to process 16 texts at a time. After that, indexing finished in about 13 seconds. Claude also drafted my acceptance criteria 4 and 5. Before keeping them, I checked their chunk sizes against the index results: the shortest was 201 characters and the longest was 678.
+
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
@@ -177,111 +143,127 @@ longest 678) before keeping them.
 
 ## Run Log — Before
 
-<!-- Your five criteria, three runs each. `python run_eval.py --label before`
-     runs the questions, puts the OUT_OF_SCOPE ones through the gate, and
-     writes it all into results/ for you. Targets come from criteria.md; the
-     verdict column is your call.
+`AI201_HYBRID` unset, `python run_eval.py --label before` (3 runs per question, caching off, 15 model calls), plus `python check_chunks.py before`. Raw logs: [results/run_2026-09-25_2350_before.md](results/run_2026-09-25_2350_before.md), [results/criteria_before.json](results/criteria_before.json) (per-run criterion 1/2/5 flags), [results/chunks_before.json](results/chunks_before.json).
 
-     Criterion 3 is measured in one deterministic pass rather than three, so
-     the same number goes in all three run columns. That's correct, not lazy.
-
-     Milestone 1. -->
+I wrote `scorer.py` (criteria 1, 2, 5) and `check_chunks.py` (criterion 4) for this. Each cell is the number of the 5 questions that passed in that run. Criterion 3 and 4 are deterministic, so the same number is in all three columns.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Every chunk 200-700 chars, ends on a full sentence | all chunks | 91/91 | 91/91 | 91/91 | MET |
+| 5. Cited file contains the expected phrase | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
+How each is measured (all from `questions.py`'s `expects` phrase):
+- **1:** the whitespace-normalised `expects` phrase appears in the text of at least one of the top-5 retrieved chunks.
+- **2:** the answer text contains a `guide_*.md` filename.
+- **5:** at least one filename the answer cites is a real corpus file whose full text contains `expects`.
+
+**Real output.** Criterion 1, retrieval for "Does a bus run to Kestrelford on Sundays?" (`store.py::search`, from `results/criteria_before.json`):
+
+```
+guide_regional_transport.md#1, guide_kestrelford.md#1, guide_kestrelford.md#2, guide_kestrelford.md#6, guide_kestrelford.md#4
+```
+`expects` = "not at all" is in `guide_kestrelford.md#1` (rank 2). Rank 1 (`guide_regional_transport.md#1`) says "does not run on Sundays", so it answers the question but not in the `expects` wording.
+
+Criterion 2 and 5, an answer as produced by `generate.py::answer_from_chunks`:
+
+```
+It costs £2 to climb the church tower in Kestrelford (from guide_kestrelford.md).
+```
+```
+The train from Brightwater to the regional hub takes 50 minutes. This comes from *guide_brightwater.md* and *guide_regional_transport.md*.
+```
+
+Criterion 3, `run_eval.py::check_out_of_scope` (cutoff 0.6, `gate.py::check`):
+
+```
+  refused  (best distance 0.808)  What is the capital of Mongolia?
+  refused  (best distance 0.881)  How do I change the oil in a diesel engine?
+  refused  (best distance 0.982)  Who won the 1994 World Cup?
+  refused  (best distance 0.835)  What is the recommended dosage of ibuprofen for a headache?
+  refused  (best distance 0.859)  How do I write a for loop in Rust?
+  -> gate refused 5 of 5
+```
+
+Criterion 4, `check_chunks.py` over `chunker.py::split_documents`:
+
+```
+91 chunks, min 201, max 678, 0 violating
+```
+
+Note: my first "before" attempt scored 0/15 because of a path bug in my own `scorer.py` (it looked in `documents/documents/`). I fixed the scorer, deleted that log, and re-ran; the answers themselves were fine. Two other attempts hit the free tier's 15-requests-per-minute limit and were rerun after waiting.
 
 ## Verdicts
 
-<!-- MET or MISSED for each of the five, against the target you wrote last
-     unit — not a new one. Plus a sentence on how you decided. That sentence
-     matters most where it was close.
-
-     If your target said 4 of 5 and your runs came out 4, 3, 4, that's a MISS.
-     The target has to hold, not show up occasionally.
-
-     Milestone 2. -->
-
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | Retrieved chunks contain the answer (4 of 5) | **MET** | 5 of 5 in all three runs. Retrieval is deterministic, so the three runs are identical; the closest call was the Sunday-bus question, where the `expects` phrase is in rank 2, not rank 1. |
+| 2 | Every answer names a source (5 of 5) | **MET** | 15 of 15 answers cited a `guide_*.md` file. This is the only criterion that depends on the model varying run to run, and it did not vary. |
+| 3 | Gate stops out-of-corpus questions (4 of 5) | **MET** | 5 of 5 refused; the closest out-of-corpus question was 0.808, 0.2 past the 0.6 cutoff. |
+| 4 | Chunks 200-700 chars, end on a full sentence | **MET** | 91 of 91 chunks; shortest 201, longest 678, none ending mid-sentence. |
+| 5 | Cited file contains the expected phrase (5 of 5) | **MET** | 15 of 15 answers cited at least one file containing the phrase. |
+
+I did not change any target or add a revision to `criteria.md`: nothing was unmeasurable, and nothing was missed.
 
 ## Diagnoses
 
-<!-- For each miss: which stage caused it, and how. The stage alone isn't
-     enough — you need the mechanism.
+**Nothing was missed, so there is no failed stage to diagnose.** What I can do honestly is say where the targets were soft, and what my own probing found.
 
-     Not a diagnosis: "Question 3 didn't work."
-     A diagnosis:     "Question 3 asks about laundry costs. The answer is in
-                       one sentence that got split across two chunks, so
-                       neither chunk on its own contains it."
-
-     The five stages: loading → chunking → embedding → retrieval → generation.
-
-     Look for a pattern. If three misses all ask about numbers, that's one
-     problem, not three.
-
-     Missed nothing? Say so, then say honestly whether your targets were set
-     low, and which one you'd tighten and to what.
-
-     Milestone 3. -->
+- **Criterion 1 is lenient.** "Any of the top 5" out of 91 chunks is easy when a question names one town, since the top 5 are usually all from that town's guide. It said nothing about rank or about junk in the other slots. Rank of the first answer chunk (`expects` phrase) was [2, 1, 1, 1, 1], and 3 of the 25 retrieved slots came from unrelated towns (`givens_mill#3`, `marchwood#1`, `thornby_wells#1`). That is a **retrieval-stage** weakness: dense embeddings match on meaning, so a chunk about another town's pub or train is "close enough" and takes a slot.
+- **Criterion 3 was measured on the easy case only.** All five out-of-scope questions are about a different world (Mongolia, Rust). The failure the criterion itself worried about is a question on a topic the guides *do* cover but don't answer. I probed six such questions (not part of the scored set): the gate let all six through, at distances 0.366 to 0.439 against a 0.6 cutoff, so **the gate cannot catch that case at all** (**retrieval/gate stage**: a same-topic chunk is always close). The model's prompt then declined 3 of the 6 (pizza restaurant in Marchwood, ATM in Kestrelford, car rental in Corry Vale) and answered the other 3. I did not check those three against the guides, so I can't say if they were wrong.
+- **Criterion 4 was nearly circular.** I took 200 and 700 from the lengths of the index I had just built (201 and 678), so it could hardly fail. If I tightened one, it would be this one, to a bound set before looking at the index.
+- **Criteria 2 and 5** pass when a model cites two files (three answers cite both a town guide and the regional guide), which hides whether the *right* one was used.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** Added hybrid retrieval to `store.py::search` (`_hybrid_rerank`). Dense results for the whole index are fused with a BM25 ranking of the same chunks using reciprocal rank fusion, and the top 5 are returned. Each chunk keeps its own dense distance so `gate.py` is untouched. It is switched on with `AI201_HYBRID=1`, so before and after use the same code and the same index, and the default is unchanged.
 
-**Why I picked it:**
-
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
+**Why I picked it:** It targets the retrieval-stage weakness above: dense-only retrieval lets same-topic chunks from other towns into the top 5 and ignores exact words that matter here ("Sunday", "£2", "8:30"); BM25 rewards those exact words.
 
 ### Run Log — After
 
-<!-- Same format, same five criteria, three runs each.
-     `python run_eval.py --label after` -->
+`AI201_HYBRID=1 python run_eval.py --label after`. Raw logs: [results/run_2026-09-25_2354_after.md](results/run_2026-09-25_2354_after.md), [results/criteria_after.json](results/criteria_after.json), [results/chunks_after.json](results/chunks_after.json).
 
-| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
-|---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| Criterion | Target | Before (R1/R2/R3) | After (R1/R2/R3) | Verdict |
+|---|---|---|---|---|
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
+| 4. Chunk length and sentence ends | all chunks | 91 / 91 / 91 | 91 / 91 / 91 | MET |
+| 5. Cited file contains expected phrase | 5 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
 
-**Did it help?**
+Secondary retrieval measurements from the same runs (not criteria, just how I judged whether the fix did what I wanted):
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
+| | Before | After |
+|---|---|---|
+| Rank of first chunk containing `expects` (5 questions) | 2, 1, 1, 1, 1 | 2, 1, 1, 1, 1 |
+| Retrieved chunks from unrelated towns/topics (of 25) | 3 | 7 |
+| Closest out-of-scope distance (gate margin) | 0.808 | 0.808 |
+| Out-of-scope refused | 5 of 5 | 5 of 5 |
 
-     Milestone 4. -->
+After, the Sunday-bus retrieval was `regional_transport#1, kestrelford#1, kestrelford#2, givens_mill#1, kestrelford#4`.
+
+**Did it help?** No. The five criteria were already all MET, so they could not improve, and they didn't change. On the measure that mattered, it was slightly **worse**: the rank of the answer chunk did not move, and the number of off-topic chunks in the top 5 went from 3 to 7 (Givens Mill, Elder Ness, Pellew Sands, Walking, and a Brightwater chunk for a Kestrelford question). The reason is visible in the log: with only 91 short chunks, BM25 rewards any chunk sharing a common word like "the", "in", "Kestrelford", and fusing it in pushes a lexical near-miss above a semantically better dense hit. I would not ship it. I left it behind the `AI201_HYBRID` flag rather than deleting it so the result is reproducible; it is off by default. The gate margin was not affected.
+
+I only ran the full evaluation once for the "after" state, so a small difference of one or two chunks could be noise; the direction (more junk, no better rank) is consistent across all five questions.
 
 ## What's Still Broken
 
-<!-- For each criterion still missed after your fix: what you'd do about it,
-     and why you stopped where you did.
-
-     "I ran out of time" is fine if it's true. Pretending nothing is left is
-     not.
-
-     Milestone 5. -->
+- **Same-topic questions the guides don't answer still pass the gate.** The 0.6 cutoff separates "different world" from "this world" but not "answered" from "not answered". Six probe questions had distances of 0.37 to 0.44. Right now only the prompt in `generate.py` stops a wrong answer, and it declined only 3 of 6. Next I'd add a scored set of ~5 near-topic unanswerable questions to `questions.py`, and try either a tighter cutoff (which would risk refusing the real questions at 0.406) or a second check on whether the top chunk actually contains the asked-for fact.
+- **Top-5 has off-topic chunks** even before my change (3 of 25). A fix I'd try next instead of BM25: filter or boost by the town named in the question, since the questions mostly name one.
+- **The hybrid change isn't an improvement**, as measured above. I stopped after one attempt because the milestone asks for one measured fix and the measurement was already clear; further tuning of BM25 weights on five questions would be fitting to the test.
+- **The scoring script is mine and simple.** The `expects` phrase check misses correct answers worded differently (the Sunday-bus rank-1 chunk), so criterion 1 could under-report.
 
 ## What I'd Do Differently
 
-<!-- Knowing what you know now — which of your five criteria would you write
-     differently, and why?
+- **Criterion 1:** require the answer chunk in the **top 3** and count off-topic chunks, not just "somewhere in the top 5"; as written I could not have failed it on a five-town corpus.
+- **Criterion 3:** score it on near-topic unanswerable questions as well, since those are the failures a real user hits. Five questions about Mongolia and Rust tested the easy half.
+- **Criterion 4:** choose the length bounds *before* running the indexer. I took them from the index's own min and max, which nearly guaranteed a pass.
+- **Criteria 2 and 5:** merge into one: "the answer cites the file the fact comes from and no file that doesn't contain it". Right now 2 says "any file" and 5 says "at least one", which allows a wrong extra citation.
+- Write the scorer at the same time as the criteria; I only found the `expects` wording problem once I ran it.
 
-     Milestone 5. -->
+## How I Used AI in Unit 2
+
+I had Claude Code write `scorer.py`, `check_chunks.py` and the hybrid reranker, and run the evaluations. Claude's first scorer had a path bug that failed all 15 runs; I noticed 0/15 was implausible (the answers in the log were correct), had it fix the bug and re-run. I also had it probe the gate with near-topic questions that were not part of my original set. The verdicts and the decision not to change any targets are mine.
