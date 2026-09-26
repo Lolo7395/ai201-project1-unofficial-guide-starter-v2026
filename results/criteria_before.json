@@ -1,0 +1,266 @@
+[
+  {
+    "question": "Does a bus run to Kestrelford on Sundays?",
+    "expects": "not at all",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_kestrelford.md",
+      "guide_regional_transport.md"
+    ],
+    "retrieved": [
+      "guide_regional_transport.md#1",
+      "guide_kestrelford.md#1",
+      "guide_kestrelford.md#2",
+      "guide_kestrelford.md#6",
+      "guide_kestrelford.md#4"
+    ]
+  },
+  {
+    "question": "Does a bus run to Kestrelford on Sundays?",
+    "expects": "not at all",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_kestrelford.md",
+      "guide_regional_transport.md"
+    ],
+    "retrieved": [
+      "guide_regional_transport.md#1",
+      "guide_kestrelford.md#1",
+      "guide_kestrelford.md#2",
+      "guide_kestrelford.md#6",
+      "guide_kestrelford.md#4"
+    ]
+  },
+  {
+    "question": "Does a bus run to Kestrelford on Sundays?",
+    "expects": "not at all",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_kestrelford.md",
+      "guide_regional_transport.md"
+    ],
+    "retrieved": [
+      "guide_regional_transport.md#1",
+      "guide_kestrelford.md#1",
+      "guide_kestrelford.md#2",
+      "guide_kestrelford.md#6",
+      "guide_kestrelford.md#4"
+    ]
+  },
+  {
+    "question": "How much does it cost to climb the church tower in Kestrelford?",
+    "expects": "\u00a32",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_kestrelford.md"
+    ],
+    "retrieved": [
+      "guide_kestrelford.md#4",
+      "guide_kestrelford.md#0",
+      "guide_kestrelford.md#2",
+      "guide_kestrelford.md#5",
+      "guide_kestrelford.md#1"
+    ]
+  },
+  {
+    "question": "How much does it cost to climb the church tower in Kestrelford?",
+    "expects": "\u00a32",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_kestrelford.md"
+    ],
+    "retrieved": [
+      "guide_kestrelford.md#4",
+      "guide_kestrelford.md#0",
+      "guide_kestrelford.md#2",
+      "guide_kestrelford.md#5",
+      "guide_kestrelford.md#1"
+    ]
+  },
+  {
+    "question": "How much does it cost to climb the church tower in Kestrelford?",
+    "expects": "\u00a32",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_kestrelford.md"
+    ],
+    "retrieved": [
+      "guide_kestrelford.md#4",
+      "guide_kestrelford.md#0",
+      "guide_kestrelford.md#2",
+      "guide_kestrelford.md#5",
+      "guide_kestrelford.md#1"
+    ]
+  },
+  {
+    "question": "Can I get a taxi in Corry Vale without booking ahead?",
+    "expects": "a day ahead",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_corry_vale.md"
+    ],
+    "retrieved": [
+      "guide_corry_vale.md#2",
+      "guide_corry_vale.md#5",
+      "guide_corry_vale.md#6",
+      "guide_corry_vale.md#3",
+      "guide_corry_vale.md#1"
+    ]
+  },
+  {
+    "question": "Can I get a taxi in Corry Vale without booking ahead?",
+    "expects": "a day ahead",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_corry_vale.md"
+    ],
+    "retrieved": [
+      "guide_corry_vale.md#2",
+      "guide_corry_vale.md#5",
+      "guide_corry_vale.md#6",
+      "guide_corry_vale.md#3",
+      "guide_corry_vale.md#1"
+    ]
+  },
+  {
+    "question": "Can I get a taxi in Corry Vale without booking ahead?",
+    "expects": "a day ahead",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_corry_vale.md"
+    ],
+    "retrieved": [
+      "guide_corry_vale.md#2",
+      "guide_corry_vale.md#5",
+      "guide_corry_vale.md#6",
+      "guide_corry_vale.md#3",
+      "guide_corry_vale.md#1"
+    ]
+  },
+  {
+    "question": "What time do the pubs in Kestrelford stop serving food in the evening?",
+    "expects": "8:30",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_eating.md",
+      "guide_kestrelford.md"
+    ],
+    "retrieved": [
+      "guide_kestrelford.md#3",
+      "guide_eating.md#1",
+      "guide_kestrelford.md#5",
+      "guide_givens_mill.md#3",
+      "guide_eating.md#2"
+    ]
+  },
+  {
+    "question": "What time do the pubs in Kestrelford stop serving food in the evening?",
+    "expects": "8:30",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_eating.md",
+      "guide_kestrelford.md"
+    ],
+    "retrieved": [
+      "guide_kestrelford.md#3",
+      "guide_eating.md#1",
+      "guide_kestrelford.md#5",
+      "guide_givens_mill.md#3",
+      "guide_eating.md#2"
+    ]
+  },
+  {
+    "question": "What time do the pubs in Kestrelford stop serving food in the evening?",
+    "expects": "8:30",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_eating.md",
+      "guide_kestrelford.md"
+    ],
+    "retrieved": [
+      "guide_kestrelford.md#3",
+      "guide_eating.md#1",
+      "guide_kestrelford.md#5",
+      "guide_givens_mill.md#3",
+      "guide_eating.md#2"
+    ]
+  },
+  {
+    "question": "How long does the train from Brightwater to the regional hub take?",
+    "expects": "50 minutes",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_brightwater.md",
+      "guide_regional_transport.md"
+    ],
+    "retrieved": [
+      "guide_brightwater.md#1",
+      "guide_regional_transport.md#0",
+      "guide_brightwater.md#2",
+      "guide_marchwood.md#1",
+      "guide_thornby_wells.md#1"
+    ]
+  },
+  {
+    "question": "How long does the train from Brightwater to the regional hub take?",
+    "expects": "50 minutes",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_brightwater.md",
+      "guide_regional_transport.md"
+    ],
+    "retrieved": [
+      "guide_brightwater.md#1",
+      "guide_regional_transport.md#0",
+      "guide_brightwater.md#2",
+      "guide_marchwood.md#1",
+      "guide_thornby_wells.md#1"
+    ]
+  },
+  {
+    "question": "How long does the train from Brightwater to the regional hub take?",
+    "expects": "50 minutes",
+    "c1": true,
+    "c2": true,
+    "c5": true,
+    "cited": [
+      "guide_brightwater.md",
+      "guide_regional_transport.md"
+    ],
+    "retrieved": [
+      "guide_brightwater.md#1",
+      "guide_regional_transport.md#0",
+      "guide_brightwater.md#2",
+      "guide_marchwood.md#1",
+      "guide_thornby_wells.md#1"
+    ]
+  }
+]
