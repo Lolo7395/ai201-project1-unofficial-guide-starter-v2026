@@ -17,7 +17,9 @@ rest of the project if they were wrong:
    install needs neither PyTorch nor a reachable Hugging Face. See `_embedder`.
 """
 
+import math
 import os
+import re
 import shutil
 from dataclasses import dataclass
 
@@ -184,6 +186,35 @@ def build_index(
     return len(chunks)
 
 
+def _tokens(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9£:]+", text.lower())
+
+
+def _hybrid_rerank(question: str, raw: dict, top_k: int, k: int = 60) -> dict:
+    """
+    Unit 2 improvement: fuse the dense ranking with a BM25 ranking (reciprocal
+    rank fusion) so exact words like "Sunday" or "£2" count, not just meaning.
+    Each returned chunk keeps its own dense distance, so the gate is unchanged.
+    """
+    docs = raw["documents"][0]
+    tokenised = [_tokens(d) for d in docs]
+    avg_len = sum(map(len, tokenised)) / len(tokenised)
+    n = len(docs)
+    scores = [0.0] * n
+    for term in set(_tokens(question)):
+        df = sum(term in t for t in tokenised)
+        if not df:
+            continue
+        idf = math.log(1 + (n - df + 0.5) / (df + 0.5))
+        for i, toks in enumerate(tokenised):
+            tf = toks.count(term)
+            if tf:
+                scores[i] += idf * tf * 2.2 / (tf + 1.2 * (0.25 + 0.75 * len(toks) / avg_len))
+    bm25_rank = {i: r for r, i in enumerate(sorted(range(n), key=lambda i: -scores[i]))}
+    order = sorted(range(n), key=lambda i: -(1 / (k + i) + 1 / (k + bm25_rank[i])))[:top_k]
+    return {key: [[raw[key][0][i] for i in order]] for key in ("documents", "metadatas", "distances")}
+
+
 def search(
     question: str,
     top_k: int | None = None,
@@ -205,10 +236,13 @@ def search(
             f"No index called '{name}'. Run `python app.py index` first."
         ) from exc
 
+    hybrid = os.getenv("AI201_HYBRID") == "1"
     raw = collection.query(
         query_embeddings=embed([question]),
-        n_results=min(top_k, collection.count()),
+        n_results=collection.count() if hybrid else min(top_k, collection.count()),
     )
+    if hybrid:
+        raw = _hybrid_rerank(question, raw, top_k)
 
     results: list[Result] = []
     for text, meta, distance in zip(
