@@ -196,4 +196,4 @@ I ran the same evaluation with hybrid search on. All five criteria still passed,
 
 ## How I Used AI
 
-I used Claude Code to help me with some of my funtion in the code and the hybrid search. Its first scoring script had a file path bug, which I caught after checking the answers. I had it fix the bug and rerun the test. I reviewed the results and decided not to change the original targets.
+I used Claude Code to help me with some of my functions in the code and the hybrid search. The first scoring script had a file path bug, which I caught after checking the answers. I had it fix the bug and rerun the test. I reviewed the results and decided not to change the original targets.
