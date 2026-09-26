@@ -23,11 +23,10 @@ For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
 **Why this target:**
-All five of my questions are single-fact lookups (a price, a time, a duration)
-that live in one short section of one guide, but two of them (Sunday buses,
-the Brightwater train) are also mentioned in the regional transport guide, so
-near-duplicate chunks can crowd the top five. 4 of 5 leaves room for one such
-crowding-out miss without accepting a retriever that fails a third of the time.
+All five questions ask for a simple fact, like a price, time, or trip length, and the answers are in one short section of the guide. 
+Two topics—Sunday buses and the Brightwater train—also appear in the regional transport guide. 
+That means similar passages could fill the top five search results and push out one answer.
+ A **4 out of 5** target allows for one miss, while still expecting the retriever to find most of the answers.
 
 ---
 
@@ -36,11 +35,11 @@ crowding-out miss without accepting a retriever that fails a third of the time.
 Every answer the system produces names at least one source document.
 
 **Why this target:**
-Every chunk carries its guide title and source filename, and the generation
-prompt tells the model to cite them, so a missing source is a prompt or
-formatting failure, not a hard-question failure. Nothing about the setup
-excuses one, so the target is 5 of 5, not 4. What would have to go wrong: the
-model answering from a chunk without naming its file.
+Every chunk includes the guide title and filename, and the prompt asks the model to cite them. 
+So if an answer is missing a source, the issue is with how the model followed the prompt or formatted
+its answer—not with how difficult the question was. The target should be **5 out of 5**. 
+ A miss would mean the model used a chunk to answer but forgot to name its source file.
+
 
 ---
 
@@ -56,65 +55,32 @@ in at least 4 of 5 tries.
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
 **Why this target:**
-When I set the cutoff in Milestone 4 there was a clean gap: my in-corpus
-questions had best distances of 0.165-0.406 and the five out-of-scope ones
-0.808-0.982. With a cutoff of 0.6 sitting in that gap I could have asked for
-5 of 5, but the pre-written 4 of 5 stands because a borderline question (for
-example "what's the weather in Brightwater?") would land near the cutoff and
-I don't want the target to depend on that never happening.
+When I set the cutoff in Milestone 4, there was a clear gap in the results. Questions covered by the guides had distances from 0.165 to 0.406, while the five questions outside their scope had distances from 0.808 to 0.982. The 0.6 cutoff falls between those ranges, so it handled all five test questions correctly. I’m keeping the original **4 out of 5** target, though, because a borderline question like “What’s the weather in Brightwater?” might fall close to the cutoff. I don’t want the target to assume every future question will be as clear-cut.
+
 
 ---
 
 ## 4. Something about your chunks
-
-<!-- YOU WRITE THIS ONE.
-
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
 
 Every chunk is at least 200 characters and none is longer than 700, and every
 chunk ends on a complete sentence (no chunk cut mid-sentence at its end).
 
 **Why this target:**
 
-My guides are written in "## " sections of roughly 150-650 characters, each on
-one topic. In Milestone 3 the smallest useful section (a "Where to stay" of
-about 200 characters) was still a whole answer, so anything under 200 would be
-a heading or fragment with no content, and anything over 700 would mean two
-topics were glued together and diluting the embedding. Both bounds are
-countable from `python app.py index`, which reports the shortest and longest
-chunk (currently 201 and 678), and the sentence-end check is a one-line script.
+My guides are divided into `##` sections, with each section covering one topic. Most are about 150–650 characters long. In Milestone 3, the shortest useful section was a “Where to stay” section of about 200 characters, and it still contained a complete answer. A chunk shorter than 200 characters would likely be just a heading or fragment. A chunk longer than 700 might combine two topics, making it harder for the retriever to find the right information.
+
+I can check the lengths by running `python app.py index`, which reports the shortest and longest chunks—currently 201 and 678 characters. A short script can check whether each chunk ends with a complete sentence.
+
 
 ---
 
 ## 5. Your choice
 
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
-The source named in the answer is the document that actually contains the
-answer: for 5 of 5 test questions, at least one cited file is the one whose
-text contains the `expects` phrase.
+For all five test questions, the answer should cite a file that actually contains the expected information. l checked this by making sure at least one cited file contains the question’s `expects` phrase.
 
 **Why this target:**
 
-Criterion 2 only checks that a source is named, which a model could satisfy by
-citing a plausible-sounding but wrong guide. Because the region's guides
-overlap heavily (Kestrelford appears in its own guide, the transport guide,
-the eating guide and the accessibility guide), attribution is the failure I
-would most worry about, and it is the one that makes the guide trustworthy.
+Criterion 2 only checks whether the answer names a source. The model could pass that check even if it cites the wrong guide. This matters because the guides overlap: Kestrelford, for example, appears in the town guide, transport guide, eating guide, and accessibility guide. I’d be most concerned about citing the wrong source, since readers need to be able to check where an answer came from.
 
 ---
 

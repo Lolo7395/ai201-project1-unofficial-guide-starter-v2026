@@ -141,129 +141,59 @@ Claude updated `store.py` to process 16 texts at a time. After that, indexing fi
      unit 1 — the point is that someone can see what you said before you knew
      how it went. -->
 
-## Run Log — Before
+## Before the Change
 
-`AI201_HYBRID` unset, `python run_eval.py --label before` (3 runs per question, caching off, 15 model calls), plus `python check_chunks.py before`. Raw logs: [results/run_2026-09-25_2350_before.md](results/run_2026-09-25_2350_before.md), [results/criteria_before.json](results/criteria_before.json) (per-run criterion 1/2/5 flags), [results/chunks_before.json](results/chunks_before.json).
+I ran the evaluation three times with `AI201_HYBRID` off. Each run tested five questions. I also checked all 91 document chunks.
 
-I wrote `scorer.py` (criteria 1, 2, 5) and `check_chunks.py` (criterion 4) for this. Each cell is the number of the 5 questions that passed in that run. Criterion 3 and 4 are deterministic, so the same number is in all three columns.
+| Criterion | Target | Result | Verdict |
+|---|---:|---:|---|
+| 1. A retrieved chunk contains the expected answer | 4 of 5 questions | 5 of 5 in every run | Met |
+| 2. Every answer names a source | 5 of 5 questions | 5 of 5 in every run | Met |
+| 3. The gate refuses questions outside the guides | 4 of 5 questions | 5 of 5 in every run | Met |
+| 4. Chunks are 200–700 characters and end with a full sentence | All chunks | 91 of 91 | Met |
+| 5. A cited file contains the expected phrase | 5 of 5 questions | 5 of 5 in every run | Met |
 
-| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
-|---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
-| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
-| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
-| 4. Every chunk 200-700 chars, ends on a full sentence | all chunks | 91/91 | 91/91 | 91/91 | MET |
-| 5. Cited file contains the expected phrase | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+For example, the answer about climbing the Kestrelford church tower said it costs £2 and cited `guide_kestrelford.md`. The gate also refused all five questions about subjects outside the guides.
 
-How each is measured (all from `questions.py`'s `expects` phrase):
-- **1:** the whitespace-normalised `expects` phrase appears in the text of at least one of the top-5 retrieved chunks.
-- **2:** the answer text contains a `guide_*.md` filename.
-- **5:** at least one filename the answer cites is a real corpus file whose full text contains `expects`.
+**Before logs:** [Evaluation](results/run_2026-09-25_2350_before.md) · [Criteria results](results/criteria_before.json) · [Chunk results](results/chunks_before.json)
 
-**Real output.** Criterion 1, retrieval for "Does a bus run to Kestrelford on Sundays?" (`store.py::search`, from `results/criteria_before.json`):
+## What the Results Missed
 
-```
-guide_regional_transport.md#1, guide_kestrelford.md#1, guide_kestrelford.md#2, guide_kestrelford.md#6, guide_kestrelford.md#4
-```
-`expects` = "not at all" is in `guide_kestrelford.md#1` (rank 2). Rank 1 (`guide_regional_transport.md#1`) says "does not run on Sundays", so it answers the question but not in the `expects` wording.
+All five criteria passed, but the tests revealed some limits:
 
-Criterion 2 and 5, an answer as produced by `generate.py::answer_from_chunks`:
+- The retrieval test only required the answer to appear somewhere in the top five chunks. It did not check whether unrelated chunks also appeared.
+- The gate refused clearly unrelated questions, such as questions about Mongolia or Rust. I also tried six questions about topics related to the guides but not clearly answered by them. The gate allowed all six through.
+- The chunk length limits were chosen after I saw the chunk lengths, which made that test too easy to pass.
+- An answer could cite an extra, incorrect file and still pass the source checks.
 
-```
-It costs £2 to climb the church tower in Kestrelford (from guide_kestrelford.md).
-```
-```
-The train from Brightwater to the regional hub takes 50 minutes. This comes from *guide_brightwater.md* and *guide_regional_transport.md*.
-```
+## The Change I Tried
 
-Criterion 3, `run_eval.py::check_out_of_scope` (cutoff 0.6, `gate.py::check`):
+I added an optional **hybrid search** mode to `store.py`. It combines the existing semantic search with BM25, which rewards matching words in the question and document. I hoped this would make details such as “Sunday” and “£2” easier to find.
 
-```
-  refused  (best distance 0.808)  What is the capital of Mongolia?
-  refused  (best distance 0.881)  How do I change the oil in a diesel engine?
-  refused  (best distance 0.982)  Who won the 1994 World Cup?
-  refused  (best distance 0.835)  What is the recommended dosage of ibuprofen for a headache?
-  refused  (best distance 0.859)  How do I write a for loop in Rust?
-  -> gate refused 5 of 5
-```
+The mode runs when `AI201_HYBRID=1`. It is off by default.
 
-Criterion 4, `check_chunks.py` over `chunker.py::split_documents`:
+## After the Change
 
-```
-91 chunks, min 201, max 678, 0 violating
-```
+I ran the same evaluation with hybrid search on. All five criteria still passed, but retrieval did not improve.
 
-Note: my first "before" attempt scored 0/15 because of a path bug in my own `scorer.py` (it looked in `documents/documents/`). I fixed the scorer, deleted that log, and re-ran; the answers themselves were fine. Two other attempts hit the free tier's 15-requests-per-minute limit and were rerun after waiting.
+| Retrieval measure | Before | After |
+|---|---:|---:|
+| Position of the first chunk with the expected phrase, across five questions | 2, 1, 1, 1, 1 | 2, 1, 1, 1, 1 |
+| Unrelated chunks in the top five results, across all questions | 3 of 25 | 7 of 25 |
+| Questions outside the guides refused by the gate | 5 of 5 | 5 of 5 |
 
-## Verdicts
+**After logs:** [Evaluation](results/run_2026-09-25_2354_after.md) · [Criteria results](results/criteria_after.json) · [Chunk results](results/chunks_after.json)
 
-| # | Criterion | Verdict | How I decided |
-|---|---|---|---|
-| 1 | Retrieved chunks contain the answer (4 of 5) | **MET** | 5 of 5 in all three runs. Retrieval is deterministic, so the three runs are identical; the closest call was the Sunday-bus question, where the `expects` phrase is in rank 2, not rank 1. |
-| 2 | Every answer names a source (5 of 5) | **MET** | 15 of 15 answers cited a `guide_*.md` file. This is the only criterion that depends on the model varying run to run, and it did not vary. |
-| 3 | Gate stops out-of-corpus questions (4 of 5) | **MET** | 5 of 5 refused; the closest out-of-corpus question was 0.808, 0.2 past the 0.6 cutoff. |
-| 4 | Chunks 200-700 chars, end on a full sentence | **MET** | 91 of 91 chunks; shortest 201, longest 678, none ending mid-sentence. |
-| 5 | Cited file contains the expected phrase (5 of 5) | **MET** | 15 of 15 answers cited at least one file containing the phrase. |
+**Conclusion:** Hybrid search did not help in this test. The expected answer chunks stayed in the same positions, while more unrelated chunks appeared. I left the feature off by default.
 
-I did not change any target or add a revision to `criteria.md`: nothing was unmeasurable, and nothing was missed.
+## What I Would Improve Next
 
-## Diagnoses
+1. Add questions that sound relevant to the guides but cannot be answered from them. These would give the gate a more useful test.
+2. Check whether the town named in a question matches the town in a retrieved chunk.
+3. Require the answer chunk to appear in the top three results and count unrelated results.
+4. Require each citation to point to a file that supports the answer.
+5. Set chunk length limits before building the index.
 
-**Nothing was missed, so there is no failed stage to diagnose.** What I can do honestly is say where the targets were soft, and what my own probing found.
+## How I Used AI
 
-- **Criterion 1 is lenient.** "Any of the top 5" out of 91 chunks is easy when a question names one town, since the top 5 are usually all from that town's guide. It said nothing about rank or about junk in the other slots. Rank of the first answer chunk (`expects` phrase) was [2, 1, 1, 1, 1], and 3 of the 25 retrieved slots came from unrelated towns (`givens_mill#3`, `marchwood#1`, `thornby_wells#1`). That is a **retrieval-stage** weakness: dense embeddings match on meaning, so a chunk about another town's pub or train is "close enough" and takes a slot.
-- **Criterion 3 was measured on the easy case only.** All five out-of-scope questions are about a different world (Mongolia, Rust). The failure the criterion itself worried about is a question on a topic the guides *do* cover but don't answer. I probed six such questions (not part of the scored set): the gate let all six through, at distances 0.366 to 0.439 against a 0.6 cutoff, so **the gate cannot catch that case at all** (**retrieval/gate stage**: a same-topic chunk is always close). The model's prompt then declined 3 of the 6 (pizza restaurant in Marchwood, ATM in Kestrelford, car rental in Corry Vale) and answered the other 3. I did not check those three against the guides, so I can't say if they were wrong.
-- **Criterion 4 was nearly circular.** I took 200 and 700 from the lengths of the index I had just built (201 and 678), so it could hardly fail. If I tightened one, it would be this one, to a bound set before looking at the index.
-- **Criteria 2 and 5** pass when a model cites two files (three answers cite both a town guide and the regional guide), which hides whether the *right* one was used.
-
-## The Improvement
-
-**What I changed:** Added hybrid retrieval to `store.py::search` (`_hybrid_rerank`). Dense results for the whole index are fused with a BM25 ranking of the same chunks using reciprocal rank fusion, and the top 5 are returned. Each chunk keeps its own dense distance so `gate.py` is untouched. It is switched on with `AI201_HYBRID=1`, so before and after use the same code and the same index, and the default is unchanged.
-
-**Why I picked it:** It targets the retrieval-stage weakness above: dense-only retrieval lets same-topic chunks from other towns into the top 5 and ignores exact words that matter here ("Sunday", "£2", "8:30"); BM25 rewards those exact words.
-
-### Run Log — After
-
-`AI201_HYBRID=1 python run_eval.py --label after`. Raw logs: [results/run_2026-09-25_2354_after.md](results/run_2026-09-25_2354_after.md), [results/criteria_after.json](results/criteria_after.json), [results/chunks_after.json](results/chunks_after.json).
-
-| Criterion | Target | Before (R1/R2/R3) | After (R1/R2/R3) | Verdict |
-|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
-| 2. Every answer names a source | 5 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
-| 3. Gate stops out-of-corpus questions | 4 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
-| 4. Chunk length and sentence ends | all chunks | 91 / 91 / 91 | 91 / 91 / 91 | MET |
-| 5. Cited file contains expected phrase | 5 of 5 | 5 / 5 / 5 | 5 / 5 / 5 | MET |
-
-Secondary retrieval measurements from the same runs (not criteria, just how I judged whether the fix did what I wanted):
-
-| | Before | After |
-|---|---|---|
-| Rank of first chunk containing `expects` (5 questions) | 2, 1, 1, 1, 1 | 2, 1, 1, 1, 1 |
-| Retrieved chunks from unrelated towns/topics (of 25) | 3 | 7 |
-| Closest out-of-scope distance (gate margin) | 0.808 | 0.808 |
-| Out-of-scope refused | 5 of 5 | 5 of 5 |
-
-After, the Sunday-bus retrieval was `regional_transport#1, kestrelford#1, kestrelford#2, givens_mill#1, kestrelford#4`.
-
-**Did it help?** No. The five criteria were already all MET, so they could not improve, and they didn't change. On the measure that mattered, it was slightly **worse**: the rank of the answer chunk did not move, and the number of off-topic chunks in the top 5 went from 3 to 7 (Givens Mill, Elder Ness, Pellew Sands, Walking, and a Brightwater chunk for a Kestrelford question). The reason is visible in the log: with only 91 short chunks, BM25 rewards any chunk sharing a common word like "the", "in", "Kestrelford", and fusing it in pushes a lexical near-miss above a semantically better dense hit. I would not ship it. I left it behind the `AI201_HYBRID` flag rather than deleting it so the result is reproducible; it is off by default. The gate margin was not affected.
-
-I only ran the full evaluation once for the "after" state, so a small difference of one or two chunks could be noise; the direction (more junk, no better rank) is consistent across all five questions.
-
-## What's Still Broken
-
-- **Same-topic questions the guides don't answer still pass the gate.** The 0.6 cutoff separates "different world" from "this world" but not "answered" from "not answered". Six probe questions had distances of 0.37 to 0.44. Right now only the prompt in `generate.py` stops a wrong answer, and it declined only 3 of 6. Next I'd add a scored set of ~5 near-topic unanswerable questions to `questions.py`, and try either a tighter cutoff (which would risk refusing the real questions at 0.406) or a second check on whether the top chunk actually contains the asked-for fact.
-- **Top-5 has off-topic chunks** even before my change (3 of 25). A fix I'd try next instead of BM25: filter or boost by the town named in the question, since the questions mostly name one.
-- **The hybrid change isn't an improvement**, as measured above. I stopped after one attempt because the milestone asks for one measured fix and the measurement was already clear; further tuning of BM25 weights on five questions would be fitting to the test.
-- **The scoring script is mine and simple.** The `expects` phrase check misses correct answers worded differently (the Sunday-bus rank-1 chunk), so criterion 1 could under-report.
-
-## What I'd Do Differently
-
-- **Criterion 1:** require the answer chunk in the **top 3** and count off-topic chunks, not just "somewhere in the top 5"; as written I could not have failed it on a five-town corpus.
-- **Criterion 3:** score it on near-topic unanswerable questions as well, since those are the failures a real user hits. Five questions about Mongolia and Rust tested the easy half.
-- **Criterion 4:** choose the length bounds *before* running the indexer. I took them from the index's own min and max, which nearly guaranteed a pass.
-- **Criteria 2 and 5:** merge into one: "the answer cites the file the fact comes from and no file that doesn't contain it". Right now 2 says "any file" and 5 says "at least one", which allows a wrong extra citation.
-- Write the scorer at the same time as the criteria; I only found the `expects` wording problem once I ran it.
-
-## How I Used AI in Unit 2
-
-I had Claude Code write `scorer.py`, `check_chunks.py` and the hybrid reranker, and run the evaluations. Claude's first scorer had a path bug that failed all 15 runs; I noticed 0/15 was implausible (the answers in the log were correct), had it fix the bug and re-run. I also had it probe the gate with near-topic questions that were not part of my original set. The verdicts and the decision not to change any targets are mine.
+I used Claude Code to help me with some of my funtion in the code and the hybrid search. Its first scoring script had a file path bug, which I caught after checking the answers. I had it fix the bug and rerun the test. I reviewed the results and decided not to change the original targets.

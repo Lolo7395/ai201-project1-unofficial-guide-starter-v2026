@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import config
-
-
 @dataclass
 class Document:
     """One source file, cleaned and ready to be chunked."""

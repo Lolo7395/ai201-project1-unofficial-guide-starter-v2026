@@ -182,7 +182,6 @@ def token_counts() -> dict[str, int]:
 
 # ─── The call ────────────────────────────────────────────────────────────────
 
-
 def _get_client():
     global _client
     if _client is None:
@@ -234,11 +233,11 @@ def generate(prompt: str, system: str | None = None, cache: bool = True) -> str:
             _call_times.append(time.monotonic())
             _session_calls += 1
 
-            kwargs = {"model": config.MODEL, "contents": prompt}
-            if system:
-                kwargs["config"] = {"system_instruction": system}
-
-            response = client.models.generate_content(**kwargs)
+            response = client.models.generate_content(
+                model=config.MODEL,
+                contents=prompt,
+                config={"system_instruction": system} if system else None,
+            )
             _record_tokens(response)
             text = (response.text or "").strip()
 
